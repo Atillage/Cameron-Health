@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#185FA5">
+<title>Cameron Heart Health Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --border-strong: rgba(0,0,0,0.18);
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --text-tertiary: #9CA3AF;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --blue-bg: #E6F1FB;
+    --blue-mid: #378ADD;
+    --blue-dark: #185FA5;
+    --blue-darker: #0C447C;
+    --green-bg: #EAF3DE;
+    --green-mid: #639922;
+    --green-dark: #3B6D11;
+    --green-darker: #27500A;
+    --amber-bg: #FAEEDA;
+    --amber-mid: #BA7517;
+    --amber-dark: #854F0B;
+    --amber-darker: #633806;
+    --red-bg: #FCEBEB;
+    --red-mid: #E24B4A;
+    --red-dark: #A32D2D;
+    --orange-bg: #FAECE7;
+    --orange-mid: #D85A30;
+    --orange-dark: #993C1D;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  .header { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .heart-icon { width: 36px; height: 36px; background: var(--blue-bg); border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .app-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .app-subtitle { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+  .date-badge { font-size: 11px; color: var(--blue-dark); background: var(--blue-bg); padding: 4px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+  .tabs { display: flex; background: var(--surface); border-bottom: 0.5px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { font-size: 13px; padding: 11px 16px; cursor: pointer; color: var(--text-secondary); border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+  .tab.active { color: var(--blue-dark); border-bottom-color: var(--blue-dark); font-weight: 500; }
+  .content { padding: 14px 14px 80px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .section { display: none; flex-direction: column; gap: 12px; }
+  .section.active { display: flex; }
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .metric-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px; }
+  .metric-label { font-size: 9px; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 5px; font-weight: 500; }
+  .metric-value { font-size: 20px; font-weight: 700; line-height: 1; }
+  .metric-sub { font-size: 10px; margin-top: 4px; }
+  .metric-badge { display: inline-block; font-size: 9px; padding: 2px 7px; border-radius: 20px; margin-top: 5px; font-weight: 500; }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .card-title span { font-size: 11px; font-weight: 400; color: var(--text-secondary); }
+  .progress-bar { background: #F3F4F6; border-radius: 4px; height: 6px; width: 100%; overflow: hidden; margin-top: 7px; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  input[type=number], input[type=text], textarea, select {
+    width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    padding: 10px 12px; font-size: 16px; color: var(--text-primary); background: var(--surface);
+    font-family: inherit; outline: none; -webkit-appearance: none; appearance: none;
+  }
+  input:focus, textarea:focus { border-color: var(--blue-dark); box-shadow: 0 0 0 3px rgba(24,95,165,0.12); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500; }
+  .form-group { display: flex; flex-direction: column; }
+  .btn { border: none; border-radius: var(--radius-md); padding: 13px 18px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; -webkit-appearance: none; }
+  .btn-primary { background: var(--blue-dark); color: white; }
+  .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+  .log-list { display: flex; flex-direction: column; gap: 8px; }
+  .log-item { padding: 12px; background: #F9FAFB; border-radius: var(--radius-md); border: 0.5px solid var(--border); }
+  .log-item-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .log-date { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+  .log-values { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .log-val { font-size: 13px; font-weight: 600; }
+  .log-tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+  .bp-chart-wrap { position: relative; height: 140px; width: 100%; }
+  .insight-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .insight-box { background: #F9FAFB; border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 11px; }
+  .insight-label { font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; font-weight: 500; }
+  .insight-val { font-size: 19px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+  .insight-note { font-size: 10px; color: var(--text-secondary); margin-top: 3px; }
+  .empty-state { text-align: center; padding: 32px 16px; color: var(--text-secondary); font-size: 13px; }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; }
+  .feeling-row { display: flex; gap: 8px; }
+  .feeling-btn { flex: 1; padding: 10px 4px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; font-size: 22px; text-align: center; transition: all 0.15s; -webkit-appearance: none; }
+  .feeling-btn.selected { border-color: var(--blue-dark); background: var(--blue-bg); }
+  .cig-stepper { display: flex; align-items: center; gap: 16px; }
+  .cig-btn { width: 44px; height: 44px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-primary); -webkit-appearance: none; transition: background 0.1s; }
+  .cig-btn:active { background: #F3F4F6; }
+  .cig-count { font-size: 28px; font-weight: 700; color: var(--text-primary); min-width: 36px; text-align: center; }
+  .alert-box { border-radius: var(--radius-md); padding: 12px 14px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+  .week-bars { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding-top: 20px; }
+  .week-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
+  .week-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 4px; transition: height 0.5s ease; }
+  .week-bar-label { font-size: 10px; color: var(--text-secondary); }
+  .week-bar-val { font-size: 9px; color: var(--text-secondary); }
+  .save-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: white; font-size: 13px; font-weight: 500; padding: 10px 20px; border-radius: 20px; z-index: 100; display: none; animation: slideUp 0.2s ease; }
+  @keyframes slideUp { from { transform: translateX(-50%) translateY(10px); opacity:0; } to { transform: translateX(-50%) translateY(0); opacity:1; } }
+  .bp-ref { display: flex; flex-direction: column; gap: 5px; }
+  .bp-ref-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .bp-ref-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .section-intro { font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="heart-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#185FA5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </div>
+      <div>
+        <div class="app-title">Cameron's Heart Tracker</div>
+        <div class="app-subtitle">Cardiac monitoring & wellness log</div>
+      </div>
+    </div>
+    <div class="date-badge" id="todayDate"></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+    <div class="tab" onclick="switchTab('log')">Log Entry</div>
+    <div class="tab" onclick="switchTab('analytics')">Analytics</div>
+    <div class="tab" onclick="switchTab('history')">History</div>
+    <div class="tab" onclick="switchTab('guide')">BP Guide</div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="sec-dashboard">
+      <div class="metric-grid">
+        <div class="metric-card" style="border-top: 3px solid var(--blue-mid);">
+          <div class="metric-label" style="color:var(--blue-dark);">Blood Pressure</div>
+          <div class="metric-value" style="color:var(--blue-darker);" id="dash-bp">—</div>
+          <div class="metric-sub" style="color:var(--blue-dark);">mmHg</div>
+          <div class="metric-badge" id="dash-bp-status" style="background:var(--blue-bg);color:var(--blue-dark);">No data</div>
+        </div>
+        <div class="metric-card" style="border-top: 3px solid var(--green-mid);">
+          <div class="metric-label" style="color:var(--green-dark);">Steps Today</div>
+          <div class="metric-value" style="color:var(--green-darker);" id="dash-steps">—</div>
+          <div class="metric-sub" style="color:var(--green-dark);">Goal: <span id="dash-goal-display">8,000</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="dash-step-bar" style="width:0%;background:var(--green-mid);"></div></div>
+        </div>
+        <div class="metric-card" style="border-top: 3px solid var(--amber-mid);">
+          <div class="metric-label" style="color:var(--amber-dark);">Cigarettes</div>
+          <div class="metric-value" style="color:var(--amber-darker);" id="dash-cigs">—</div>
+          <div class="metric-sub" style="color:var(--amber-dark);">Today</div>
+          <div class="metric-badge" id="dash-cig-status" style="background:var(--amber-bg);color:var(--amber-dark);">No data</div>
+        </div>
+      </div>
+
+      <div id="dash-alert-wrap" style="display:none;">
+        <div id="dash-alert"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">7-day blood pressure <span id="bp-avg-label"></span></div>
+        <div class="bp-chart-wrap"><canvas id="bpChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Weekly steps</div>
+        <div class="week-bars" id="week-bars"><div style="color:var(--text-tertiary);font-size:12px;width:100%;text-align:center;align-self:center;">No data yet</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Latest note &amp; mood</div>
+        <div id="dash-note" style="font-size:13px;color:var(--text-secondary);font-style:italic;">No notes logged yet.</div>
+      </div>
+    </div>
+
+    <!-- LOG ENTRY -->
+    <div class="section" id="sec-log">
+      <p class="section-intro">Fill in what you measured today. Blood pressure is required; everything else is optional but helpful.</p>
+
+      <div class="card">
+        <div class="card-title">Blood pressure <span style="color:var(--red-dark);">required</span></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Systolic (top number)</label>
+            <input type="number" id="log-sys" placeholder="e.g. 118" min="60" max="250" inputmode="numeric">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Diastolic (bottom number)</label>
+            <input type="number" id="log-dia" placeholder="e.g. 76" min="40" max="150" inputmode="numeric">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">Pulse / heart rate (bpm) — optional</label>
+          <input type="number" id="log-pulse" placeholder="e.g. 72" min="30" max="220" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Steps</div>
+        <div class="form-group">
+          <label class="form-label">Steps taken today</label>
+          <input type="number" id="log-steps" placeholder="e.g. 6240" min="0" inputmode="numeric">
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">Daily step goal</label>
+          <input type="number" id="log-goal" placeholder="e.g. 8000" min="500" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Cigarettes smoked today</div>
+        <div class="cig-stepper">
+          <button class="cig-btn" onclick="adjustCig(-1)">−</button>
+          <div class="cig-count" id="cig-display">0</div>
+          <button class="cig-btn" onclick="adjustCig(1)">+</button>
+          <span style="font-size:13px;color:var(--text-secondary);">cigarettes</span>
+        </div>
+        <input type="hidden" id="log-cigs" value="0">
+      </div>
+
+      <div class="card">
+        <div class="card-title">How are you feeling?</div>
+        <div class="feeling-row" id="feeling-row">
+          <button class="feeling-btn" onclick="selectFeeling(0,'Great')" title="Great">😊</button>
+          <button class="feeling-btn" onclick="selectFeeling(1,'Okay')" title="Okay">😐</button>
+          <button class="feeling-btn" onclick="selectFeeling(2,'Tired')" title="Tired">😴</button>
+          <button class="feeling-btn" onclick="selectFeeling(3,'Unwell')" title="Unwell">😔</button>
+          <button class="feeling-btn" onclick="selectFeeling(4,'Pain')" title="Pain">😣</button>
+        </div>
+        <input type="hidden" id="log-feeling" value="">
+      </div>
+
+      <div class="card">
+        <div class="card-title">Notes for today</div>
+        <textarea id="log-note" placeholder="e.g. Felt dizzy after walking. Took medication at 8am. Slept well last night..."></textarea>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveEntry()" style="width:100%;">Save today's entry</button>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="section" id="sec-analytics">
+      <div class="insight-row" id="analytics-insights">
+        <div class="insight-box">
+          <div class="insight-label">Avg systolic</div>
+          <div class="insight-val" id="ana-sys">—</div>
+          <div class="insight-note">7-day avg</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-label">Avg diastolic</div>
+          <div class="insight-val" id="ana-dia">—</div>
+          <div class="insight-note">7-day avg</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-label">Avg steps</div>
+          <div class="insight-val" id="ana-steps">—</div>
+          <div class="insight-note">7-day avg</div>
+        </div>
+      </div>
+      <div class="insight-row">
+        <div class="insight-box">
+          <div class="insight-label">Avg cigs/day</div>
+          <div class="insight-val" id="ana-cigs">—</div>
+          <div class="insight-note">7-day avg</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-label">Best step day</div>
+          <div class="insight-val" id="ana-best-steps">—</div>
+          <div class="insight-note" id="ana-best-steps-date"></div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-label">Lowest BP</div>
+          <div class="insight-val" id="ana-low-bp">—</div>
+          <div class="insight-note" id="ana-low-bp-date"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">BP classification — last 7 days</div>
+        <div id="bp-breakdown" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cigarette trend <span>7 days</span></div>
+        <div class="week-bars" id="cig-bars"><div style="color:var(--text-tertiary);font-size:12px;width:100%;text-align:center;align-self:center;">No data yet</div></div>
+      </div>
+      <div id="ana-empty" class="empty-state" style="display:none;">
+        <div class="empty-icon">📊</div>
+        Log a few entries to see your analytics.
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="section" id="sec-history">
+      <div class="card">
+        <div class="card-title">All entries <span id="history-count"></span></div>
+        <div id="log-list">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            No entries yet. Tap "Log Entry" to start!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BP GUIDE -->
+    <div class="section" id="sec-guide">
+      <div class="card">
+        <div class="card-title">Understanding your blood pressure</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">Blood pressure is written as two numbers: <strong style="color:var(--text-primary);">Systolic / Diastolic</strong>. Systolic is the pressure when your heart beats; diastolic is the pressure between beats.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="background:var(--green-bg);border-radius:var(--radius-md);padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--green-dark);">Normal</div>
+            <div style="font-size:13px;color:var(--green-darker);margin-top:2px;">Less than 120/80 mmHg</div>
+            <div style="font-size:11px;color:var(--green-dark);margin-top:3px;">Keep up the great work!</div>
+          </div>
+          <div style="background:var(--amber-bg);border-radius:var(--radius-md);padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--amber-dark);">Elevated</div>
+            <div style="font-size:13px;color:var(--amber-darker);margin-top:2px;">120–129 / less than 80 mmHg</div>
+            <div style="font-size:11px;color:var(--amber-dark);margin-top:3px;">Lifestyle changes recommended.</div>
+          </div>
+          <div style="background:var(--orange-bg);border-radius:var(--radius-md);padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--orange-dark);">High — Stage 1</div>
+            <div style="font-size:13px;color:var(--orange-dark);margin-top:2px;">130–139 / 80–89 mmHg</div>
+            <div style="font-size:11px;color:var(--orange-dark);margin-top:3px;">Talk to your doctor. May need medication.</div>
+          </div>
+          <div style="background:var(--red-bg);border-radius:var(--radius-md);padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--red-dark);">High — Stage 2</div>
+            <div style="font-size:13px;color:var(--red-dark);margin-top:2px;">140+ / 90+ mmHg</div>
+            <div style="font-size:11px;color:var(--red-dark);margin-top:3px;">Contact your cardiologist promptly.</div>
+          </div>
+          <div style="background:#FCEBEB;border-radius:var(--radius-md);padding:12px;border-left:3px solid var(--red-mid);">
+            <div style="font-size:12px;font-weight:600;color:var(--red-dark);">⚠ Hypertensive Crisis</div>
+            <div style="font-size:13px;color:var(--red-dark);margin-top:2px;">Higher than 180/120 mmHg</div>
+            <div style="font-size:11px;color:var(--red-dark);margin-top:3px;">Seek emergency medical care immediately.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Why reduce cigarettes?</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">Smoking raises blood pressure immediately and damages artery walls over time. Even cutting back by a few cigarettes a day reduces your cardiac risk. Your cardiologist will be thrilled to see a downward trend in your log.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Steps & heart health</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">Walking 7,000–10,000 steps daily is associated with lower blood pressure, reduced stress, and better cardiovascular outcomes. Even 5,000 steps is a great starting point if you're just getting active again.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="save-toast" id="saveToast">✓ Entry saved!</div>
+
+<script>
+  let entries = JSON.parse(localStorage.getItem('cameron_entries') || '[]');
+  let cigVal = 0;
+  let feelingVal = '';
+  let bpChart = null;
+
+  function fmt(d) {
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  function fmtFull(d) {
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function today() { return new Date().toISOString().split('T')[0]; }
+
+  function bpStatus(sys, dia) {
+    if (!sys || !dia) return { label: 'Unknown', color: '#888', bg: '#eee' };
+    if (sys > 180 || dia > 120) return { label: 'Crisis!', color: '#A32D2D', bg: '#FCEBEB' };
+    if (sys >= 140 || dia >= 90) return { label: 'High Stage 2', color: '#A32D2D', bg: '#FCEBEB' };
+    if (sys >= 130 || dia >= 80) return { label: 'High Stage 1', color: '#993C1D', bg: '#FAECE7' };
+    if (sys >= 120 && dia < 80) return { label: 'Elevated', color: '#854F0B', bg: '#FAEEDA' };
+    return { label: 'Normal', color: '#3B6D11', bg: '#EAF3DE' };
+  }
+
+  function adjustCig(n) {
+    cigVal = Math.max(0, cigVal + n);
+    document.getElementById('cig-display').textContent = cigVal;
+    document.getElementById('log-cigs').value = cigVal;
+  }
+
+  function selectFeeling(idx, label) {
+    feelingVal = label;
+    document.getElementById('log-feeling').value = label;
+    document.querySelectorAll('.feeling-btn').forEach((b, i) => b.classList.toggle('selected', i === idx));
+  }
+
+  function switchTab(tab) {
+    const tabs = ['dashboard', 'log', 'analytics', 'history', 'guide'];
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', tabs[i] === tab));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('sec-' + tab).classList.add('active');
+    if (tab === 'dashboard') renderDashboard();
+    if (tab === 'analytics') renderAnalytics();
+    if (tab === 'history') renderHistory();
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('saveToast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 2200);
+  }
+
+  function saveEntry() {
+    const sys = parseInt(document.getElementById('log-sys').value);
+    const dia = parseInt(document.getElementById('log-dia').value);
+    if (!sys || !dia) { alert('Please enter your blood pressure (both numbers) before saving.'); return; }
+
+    const pulse = parseInt(document.getElementById('log-pulse').value) || null;
+    const steps = parseInt(document.getElementById('log-steps').value) || 0;
+    const goal = parseInt(document.getElementById('log-goal').value) || 8000;
+    const cigs = cigVal;
+    const feeling = feelingVal;
+    const note = document.getElementById('log-note').value.trim();
+
+    const entry = { date: today(), sys, dia, pulse, steps, goal, cigs, feeling, note, ts: Date.now() };
+    entries = entries.filter(e => e.date !== today());
+    entries.unshift(entry);
+    entries.sort((a, b) => b.date.localeCompare(a.date));
+    localStorage.setItem('cameron_entries', JSON.stringify(entries));
+
+    showToast('✓ Entry saved!');
+
+    // Reset form
+    document.getElementById('log-sys').value = '';
+    document.getElementById('log-dia').value = '';
+    document.getElementById('log-pulse').value = '';
+    document.getElementById('log-steps').value = '';
+    document.getElementById('log-goal').value = '';
+    cigVal = 0;
+    document.getElementById('cig-display').textContent = '0';
+    document.getElementById('log-cigs').value = '0';
+    feelingVal = '';
+    document.querySelectorAll('.feeling-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('log-note').value = '';
+
+    switchTab('dashboard');
+  }
+
+  function renderDashboard() {
+    const d = new Date();
+    document.getElementById('todayDate').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    const todayEntry = entries.find(e => e.date === today());
+    const recent = entries.slice(0, 7);
+
+    if (todayEntry) {
+      document.getElementById('dash-bp').textContent = todayEntry.sys + '/' + todayEntry.dia;
+      const s = bpStatus(todayEntry.sys, todayEntry.dia);
+      const bpBadge = document.getElementById('dash-bp-status');
+      bpBadge.textContent = s.label;
+      bpBadge.style.background = s.bg;
+      bpBadge.style.color = s.color;
+
+      const goal = todayEntry.goal || 8000;
+      document.getElementById('dash-steps').textContent = todayEntry.steps.toLocaleString();
+      document.getElementById('dash-goal-display').textContent = goal.toLocaleString();
+      const pct = Math.min(100, Math.round(todayEntry.steps / goal * 100));
+      document.getElementById('dash-step-bar').style.width = pct + '%';
+
+      document.getElementById('dash-cigs').textContent = todayEntry.cigs;
+      const cigS = todayEntry.cigs === 0
+        ? { label: 'None today!', bg: '#EAF3DE', color: '#3B6D11' }
+        : todayEntry.cigs <= 3 ? { label: 'Low', bg: '#FAEEDA', color: '#854F0B' }
+        : { label: 'High', bg: '#FAECE7', color: '#993C1D' };
+      const cigBadge = document.getElementById('dash-cig-status');
+      cigBadge.textContent = cigS.label;
+      cigBadge.style.background = cigS.bg;
+      cigBadge.style.color = cigS.color;
+
+      const moodStr = todayEntry.feeling ? todayEntry.feeling + ' · ' : '';
+      document.getElementById('dash-note').textContent = todayEntry.note ? moodStr + todayEntry.note : (todayEntry.feeling ? 'Feeling: ' + todayEntry.feeling : 'No note for today.');
+      document.getElementById('dash-note').style.fontStyle = todayEntry.note || todayEntry.feeling ? 'normal' : 'italic';
+
+      const alertWrap = document.getElementById('dash-alert-wrap');
+      const alertDiv = document.getElementById('dash-alert');
+      if (todayEntry.sys > 180 || todayEntry.dia > 120) {
+        alertWrap.style.display = 'block';
+        alertDiv.innerHTML = '<div class="alert-box" style="background:#FCEBEB;color:#A32D2D;border-left:3px solid #E24B4A;"><span>🚨</span><div>Blood pressure is in <strong>Hypertensive Crisis</strong> range. Seek emergency medical care immediately.</div></div>';
+      } else if (todayEntry.sys >= 140 || todayEntry.dia >= 90) {
+        alertWrap.style.display = 'block';
+        alertDiv.innerHTML = '<div class="alert-box" style="background:#FCEBEB;color:#A32D2D;border-left:3px solid #E24B4A;"><span>⚠️</span><div>Blood pressure is in <strong>Stage 2 High</strong> range. Please contact your cardiologist if this continues.</div></div>';
+      } else if (todayEntry.sys >= 130) {
+        alertWrap.style.display = 'block';
+        alertDiv.innerHTML = '<div class="alert-box" style="background:#FAECE7;color:#993C1D;border-left:3px solid #D85A30;"><span>ℹ️</span><div>Blood pressure is slightly elevated. Continue monitoring and follow your doctor\'s advice.</div></div>';
+      } else {
+        alertWrap.style.display = 'none';
+      }
+    }
+
+    // BP Chart
+    const labels = recent.map(e => fmt(e.date)).reverse();
+    const sysData = recent.map(e => e.sys).reverse();
+    const diaData = recent.map(e => e.dia).reverse();
+    if (bpChart) bpChart.destroy();
+    const ctx = document.getElementById('bpChart').getContext('2d');
+    bpChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Systolic', data: sysData, borderColor: '#378ADD', backgroundColor: 'rgba(55,138,221,0.08)', tension: 0.35, pointRadius: 4, pointBackgroundColor: '#185FA5', fill: true, borderWidth: 2 },
+          { label: 'Diastolic', data: diaData, borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.06)', tension: 0.35, pointRadius: 4, pointBackgroundColor: '#0F6E56', fill: true, borderWidth: 2 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { size: 11 }, color: '#9CA3AF', boxWidth: 10, padding: 10 } } },
+        scales: {
+          x: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 }, color: '#9CA3AF' } },
+          y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 }, color: '#9CA3AF' }, suggestedMin: 50, suggestedMax: 180 }
+        }
+      }
+    });
+    document.getElementById('bp-avg-label').textContent = recent.length ? '(' + recent.length + ' entries)' : '';
+
+    // Step bars
+    const barsEl = document.getElementById('week-bars');
+    barsEl.innerHTML = '';
+    const weekE = entries.slice(0, 7).reverse();
+    if (!weekE.length) {
+      barsEl.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;width:100%;text-align:center;align-self:center;">No data yet</div>';
+      return;
+    }
+    const maxS = Math.max(...weekE.map(e => e.steps || 0), 1);
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    weekE.forEach(e => {
+      const pct = Math.round((e.steps || 0) / maxS * 100);
+      const met = (e.steps || 0) >= (e.goal || 8000);
+      const dt = new Date(e.date + 'T12:00:00');
+      const wrap = document.createElement('div');
+      wrap.className = 'week-bar-wrap';
+      const stepLabel = e.steps >= 1000 ? (e.steps / 1000).toFixed(1) + 'k' : (e.steps || 0);
+      wrap.innerHTML = `<div class="week-bar-val">${stepLabel}</div><div class="week-bar" style="height:${Math.max(pct, 4)}%;background:${met ? '#639922' : '#B4B2A9'};"></div><div class="week-bar-label">${days[dt.getDay()]}</div>`;
+      barsEl.appendChild(wrap);
+    });
+  }
+
+  function renderAnalytics() {
+    const recent = entries.slice(0, 7);
+    if (!recent.length) {
+      document.getElementById('ana-empty').style.display = 'block';
+      return;
+    }
+    document.getElementById('ana-empty').style.display = 'none';
+
+    const avgSys = Math.round(recent.reduce((a, e) => a + e.sys, 0) / recent.length);
+    const avgDia = Math.round(recent.reduce((a, e) => a + e.dia, 0) / recent.length);
+    const avgSteps = Math.round(recent.reduce((a, e) => a + (e.steps || 0), 0) / recent.length);
+    const avgCigs = (recent.reduce((a, e) => a + (e.cigs || 0), 0) / recent.length).toFixed(1);
+
+    document.getElementById('ana-sys').textContent = avgSys;
+    document.getElementById('ana-dia').textContent = avgDia;
+    document.getElementById('ana-steps').textContent = avgSteps >= 1000 ? (avgSteps / 1000).toFixed(1) + 'k' : avgSteps;
+    document.getElementById('ana-cigs').textContent = avgCigs;
+
+    const bestSteps = recent.reduce((a, e) => (e.steps || 0) > (a.steps || 0) ? e : a, recent[0]);
+    document.getElementById('ana-best-steps').textContent = bestSteps.steps >= 1000 ? (bestSteps.steps / 1000).toFixed(1) + 'k' : bestSteps.steps;
+    document.getElementById('ana-best-steps-date').textContent = fmt(bestSteps.date);
+
+    const lowBP = recent.reduce((a, e) => e.sys < a.sys ? e : a, recent[0]);
+    document.getElementById('ana-low-bp').textContent = lowBP.sys + '/' + lowBP.dia;
+    document.getElementById('ana-low-bp-date').textContent = fmt(lowBP.date);
+
+    const categories = { Normal: 0, Elevated: 0, 'High Stage 1': 0, 'High Stage 2': 0, 'Crisis!': 0 };
+    recent.forEach(e => { const s = bpStatus(e.sys, e.dia); if (categories[s.label] !== undefined) categories[s.label]++; });
+    const bpBreak = document.getElementById('bp-breakdown');
+    bpBreak.innerHTML = '';
+    const colors = { Normal: '#639922', Elevated: '#BA7517', 'High Stage 1': '#D85A30', 'High Stage 2': '#A32D2D', 'Crisis!': '#7F1919' };
+    const bgs = { Normal: '#EAF3DE', Elevated: '#FAEEDA', 'High Stage 1': '#FAECE7', 'High Stage 2': '#FCEBEB', 'Crisis!': '#FCEBEB' };
+    Object.entries(categories).forEach(([k, v]) => {
+      if (!v) return;
+      const pct = Math.round(v / recent.length * 100);
+      bpBreak.innerHTML += `<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:${colors[k]};font-weight:600;">${k}</span><span style="color:var(--text-secondary);">${v} day${v > 1 ? 's' : ''} (${pct}%)</span></div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[k]};"></div></div></div>`;
+    });
+
+    const cigBars = document.getElementById('cig-bars');
+    cigBars.innerHTML = '';
+    const revRecent = [...recent].reverse();
+    const maxCig = Math.max(...revRecent.map(e => e.cigs || 0), 1);
+    const days2 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    revRecent.forEach(e => {
+      const pct = Math.round((e.cigs || 0) / maxCig * 100);
+      const dt = new Date(e.date + 'T12:00:00');
+      const wrap = document.createElement('div');
+      wrap.className = 'week-bar-wrap';
+      wrap.innerHTML = `<div class="week-bar-val">${e.cigs || 0}</div><div class="week-bar" style="height:${Math.max(pct, 4)}%;background:${e.cigs === 0 ? '#639922' : e.cigs <= 3 ? '#BA7517' : '#A32D2D'};"></div><div class="week-bar-label">${days2[dt.getDay()]}</div>`;
+      cigBars.appendChild(wrap);
+    });
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('log-list');
+    document.getElementById('history-count').textContent = entries.length ? '(' + entries.length + ')' : '';
+    if (!entries.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>No entries yet. Tap "Log Entry" to start!</div>';
+      return;
+    }
+    list.innerHTML = '';
+    entries.forEach(e => {
+      const s = bpStatus(e.sys, e.dia);
+      const div = document.createElement('div');
+      div.className = 'log-item';
+      const pulse = e.pulse ? ` · ${e.pulse} bpm` : '';
+      const feeling = e.feeling ? ` · ${e.feeling}` : '';
+      div.innerHTML = `
+        <div class="log-item-top">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${fmtFull(e.date)}</div>
+            <div class="log-date">${feeling}${pulse}</div>
+          </div>
+          <span class="log-tag" style="background:${s.bg};color:${s.color};">${s.label}</span>
+        </div>
+        <div class="log-values">
+          <span class="log-val" style="color:var(--blue-dark);">🩺 ${e.sys}/${e.dia}</span>
+          <span class="log-val" style="color:var(--green-dark);">👟 ${(e.steps || 0).toLocaleString()}</span>
+          <span class="log-val" style="color:var(--amber-dark);">🚬 ${e.cigs || 0}</span>
+        </div>
+        ${e.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:7px;line-height:1.5;border-top:0.5px solid var(--border);padding-top:7px;">${e.note}</div>` : ''}
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  // Init
+  const d = new Date();
+  document.getElementById('todayDate').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  renderDashboard();
+</script>
+</body>
+</html>
